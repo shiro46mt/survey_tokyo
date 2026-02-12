@@ -7,7 +7,12 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def download():
+def download(showFp='1'):
+    showFp_names = {
+        '': '全報告数',
+        '2': '定点数',
+        '1': '定点当たり報告数',
+    }
     url = 'https://survey.tmiph.metro.tokyo.lg.jp/epidinfo/weeklyhc.do'
     payloads = {
         'periodOffset': '1',
@@ -16,7 +21,7 @@ def download():
         'val(epidCode)': '',
         'val(refMode)': '',
         'val(refYear)': '',
-        'val(showFp)': '1',
+        'val(showFp)': showFp,
         'val(year)': 2999,
         'val(week)': 53,
     }
@@ -45,12 +50,24 @@ def download():
         if tag.name == 'table':
             table = tag
             break
-    df = pd.read_html(StringIO(str(table).replace('<br/>', '')), header=0)[0].rename(columns={'保健所／疾病名': '保健所'}).query("保健所 != '合計'")
+    df = (
+        pd.read_html(StringIO(str(table).replace('<br/>', '')), header=0)[0]
+        .rename(columns={'保健所／疾病名': '保健所'})
+        .query("保健所 != '合計' and 保健所 != '報告数/定点数'")
+    )
     cols = list(df.columns)
-    df = df.assign(**{'年': year, '週番号': week_num, '開始日': start_date, '終了日': end_date})[['年', '週番号', '開始日', '終了日'] + cols]
+    df = (
+        df.assign(**{'年': year, '週番号': week_num, '開始日': start_date, '終了日': end_date})
+        [['年', '週番号', '開始日', '終了日'] + cols]
+        .rename(columns={
+            '新型コロナウイルス感染症／COVID|19': '新型コロナウイルス感染症／COVID-19',
+            'ヘルパンギ｜ナ': 'ヘルパンギーナ',
+            'COVID|19入院': 'COVID-19入院',
+        })
+    )
 
     # 過去データと連結
-    filepath = Path(__file__).parent / 'all.csv'
+    filepath = Path(__file__).parent / f'{showFp_names[showFp]}.csv'
     df_all = pd.concat([
         pd.read_csv(filepath, dtype=str),
         df
@@ -59,4 +76,7 @@ def download():
 
 
 if __name__ == "__main__":
-    download()
+    # 全報告数
+    download('')
+    # 定点数
+    download('2')
