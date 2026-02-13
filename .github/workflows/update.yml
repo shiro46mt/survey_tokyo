@@ -41,7 +41,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if (git diff --shortstat | grep '[0-9]'); then \
-            git add all.csv; \
+            git add *.csv; \
             git commit -m "${today}"; \
             git push origin main; \
           fi
